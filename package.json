@@ -1,0 +1,20 @@
+{
+  "name": "habit-tracking",
+  "version": "1.0.0",
+  "description": "Local habit tracking and accountability system with habit contracts",
+  "type": "module",
+  "bin": {
+    "habit": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.2.1"
+  }
+}
