@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Today · Habit-Tracking{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="60">{% endblock %}
+{% block content %}
+<h1>Today</h1>
+<p class="muted">{{ today_label }} · {{ done_count }} of {{ items|length }} done · this page re-checks deadlines every minute</p>
+
+{% if open_penalty_count %}
+<div class="alert penalty">You owe {{ open_penalty_count }} penalt{{ 'y' if open_penalty_count == 1 else 'ies' }}.
+  <a href="{{ url_for('penalties') }}">Settle up →</a></div>
+{% endif %}
+
+{% if not items %}
+  <p class="card">Nothing scheduled today. <a href="{{ url_for('habits') }}">Add a habit</a>.</p>
+{% endif %}
+
+<ol class="timeline">
+{% for h in items %}
+  <li class="card {{ h.status }}">
+    <div class="time">{% if h.window_start %}{{ h.window_start }}<br>→ {% endif %}{{ h.target_time }}</div>
+    <div class="body">
+      <h2>{{ h.title }}</h2>
+      {% if h.description %}<p class="muted">{{ h.description }}</p>{% endif %}
+      {% if h.penalty_description %}
+        <p class="stake">Stake: {{ h.penalty_description }}{% if h.forfeit_amount is not none %} · forfeit {{ '%g' % h.forfeit_amount }}{% endif %}</p>
+      {% endif %}
+    </div>
+    <div class="action">
+      {% if h.status == 'pending' %}
+        <form method="post" action="{{ url_for('check_off', habit_id=h.id) }}">
+          <button class="primary">Check off</button>
+        </form>
+        <span class="muted small">{{ h.time_left }}</span>
+      {% elif h.status == 'done' %}
+        <span class="pill done">Done</span>
+      {% else %}
+        <span class="pill failed">Failed</span>
+      {% endif %}
+    </div>
+  </li>
+{% endfor %}
+</ol>
+{% endblock %}

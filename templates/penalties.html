@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Penalties · Habit-Tracking{% endblock %}
+{% block content %}
+<h1>Penalties</h1>
+<p class="muted">Triggered by a failed habit. Serve it, then mark it done here. The tracker can't enforce it — you can.</p>
+{% if not rows %}
+  <p class="card">Nothing owed. 🎉</p>
+{% endif %}
+{% for p in rows %}
+  <div class="card failed row">
+    <div class="body">
+      <h2>{{ p.penalty_description }}{% if p.forfeit_amount is not none %} · forfeit {{ '%g' % p.forfeit_amount }}{% endif %}</h2>
+      <p class="muted">For failing “{{ p.title }}” on {{ p.date }}</p>
+    </div>
+    <form method="post" action="{{ url_for('fulfill', penalty_id=p.id) }}">
+      <button class="primary">I served it</button>
+    </form>
+  </div>
+{% endfor %}
+{% endblock %}

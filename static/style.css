@@ -1,0 +1,68 @@
+:root {
+  --bg: #f6f7f9; --card: #fff; --text: #1d2330; --muted: #667085; --line: #e3e6ec;
+  --accent: #3b5bdb; --done: #2b8a3e; --failed: #c92a2a; --pending: #e67700;
+  --done-bg: #ebfbee; --failed-bg: #fff5f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #14171f; --card: #1d212c; --text: #e8eaf0; --muted: #9aa3b5; --line: #2c3240;
+          --accent: #7c93ff; --done: #69db7c; --failed: #ff8787; --pending: #ffa94d;
+          --done-bg: #17261b; --failed-bg: #2b1a1d; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+       font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+header { background: var(--card); border-bottom: 1px solid var(--line); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; padding-top: 12px; padding-bottom: 12px; }
+.brand { font-weight: 700; color: var(--text); text-decoration: none; }
+nav { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+nav a, .muted a { text-decoration: none; color: var(--muted); }
+a { color: var(--accent); }
+nav a.active, .muted a.active { color: var(--text); font-weight: 600; }
+.badge { background: var(--failed); color: #fff; border-radius: 99px; padding: 0 7px; font-size: 12px; }
+main { padding-top: 16px; padding-bottom: 48px; }
+h1 { margin: 8px 0 4px; font-size: 28px; }
+h2 { margin: 0 0 2px; font-size: 18px; }
+.muted { color: var(--muted); margin: 2px 0; }
+.small { font-size: 13px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 12px 0; }
+.alert { padding: 10px 14px; border-radius: 10px; margin: 10px 0; border: 1px solid var(--line); background: var(--card); }
+.alert.ok { border-color: var(--done); }
+.alert.error { border-color: var(--pending); }
+.alert.penalty { border-color: var(--failed); background: var(--failed-bg); }
+.timeline { list-style: none; padding: 0; margin: 0; }
+.timeline .card, .row { display: flex; gap: 14px; align-items: center; }
+.row { justify-content: space-between; }
+.timeline .card { border-left: 5px solid var(--pending); }
+.timeline .card.done { border-left-color: var(--done); background: var(--done-bg); }
+.timeline .card.failed, .card.failed.row { border-left: 5px solid var(--failed); background: var(--failed-bg); }
+.time { min-width: 62px; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--muted); }
+.body { flex: 1; }
+.stake { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+.action { text-align: center; }
+.pill { padding: 3px 12px; border-radius: 99px; font-weight: 600; font-size: 14px; }
+.pill.done { color: var(--done); border: 1px solid var(--done); }
+.pill.failed { color: var(--failed); border: 1px solid var(--failed); }
+button, .btn { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line);
+               background: var(--card); color: var(--text); cursor: pointer; text-decoration: none; display: inline-block; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.ghost { color: var(--muted); }
+.grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 12px; margin-top: 8px; }
+.grid label { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); gap: 3px; }
+.grid .wide { grid-column: 1 / -1; }
+input { font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+        background: var(--bg); color: var(--text); }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.scroll { overflow-x: auto; }
+.grid-table td.cell { text-align: center; }
+.doc h1 { font-size: 26px; } .doc h2 { margin-top: 22px; }
+.sign { margin-top: 32px; }
+@media (max-width: 560px) {
+  .grid { grid-template-columns: 1fr; }
+  .timeline .card { flex-wrap: wrap; }
+}
+@media print {
+  header, .no-print, .alert { display: none !important; }
+  body { background: #fff; color: #000; } .card { border: 0; padding: 0; }
+}

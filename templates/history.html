@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}History · Habit-Tracking{% endblock %}
+{% block content %}
+<h1>History</h1>
+<p class="muted">Show:
+  {% for n in (7, 14, 30, 90) %}<a href="{{ url_for('history', days=n) }}" {% if n == days %}class="active"{% endif %}>{{ n }} days</a>{% if not loop.last %} · {% endif %}{% endfor %}
+</p>
+
+<div class="card scroll">
+  <table>
+    <thead><tr><th>Habit</th><th>Done</th><th>Failed</th><th>Pending</th><th>Success rate</th></tr></thead>
+    <tbody>
+    {% for s in summary %}
+      <tr><td>{{ s.title }}</td><td>{{ s.done }}</td><td>{{ s.failed }}</td><td>{{ s.pending }}</td>
+          <td>{% if s.rate is none %}–{% else %}{{ s.rate }}%{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card scroll">
+  <table class="grid-table">
+    <thead><tr><th>Date</th>{% for h in habits %}<th>{{ h.title }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for d in dates %}
+      <tr><td>{{ d }}</td>
+      {% for h in habits %}
+        {% set s = grid.get((d, h.id)) %}
+        <td class="cell {{ s or 'none' }}" title="{{ s or 'not scheduled' }}">{{ {'done': '✅', 'failed': '❌', 'pending': '⏳'}.get(s, '·') }}</td>
+      {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

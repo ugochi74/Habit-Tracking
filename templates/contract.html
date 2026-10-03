@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Contract · Habit-Tracking{% endblock %}
+{% block content %}
+<form method="get" class="card grid no-print">
+  <label>Your name <input name="name" value="{{ name }}"></label>
+  <label>Witness / partner <input name="partner" value="{{ partner }}" placeholder="optional"></label>
+  <div class="wide">
+    <button class="primary">Update</button>
+    <a class="btn" href="{{ url_for('contract_md', name=name, partner=partner) }}">Download .md</a>
+    <button type="button" onclick="window.print()">Print</button>
+  </div>
+</form>
+
+<article class="card doc">
+  <h1>Habit Contract</h1>
+  <p><strong>Committer:</strong> {{ name or '________' }}<br>
+     <strong>Witness / accountability partner:</strong> {{ partner or 'the Habit-Tracking system' }}<br>
+     <strong>Effective:</strong> {{ start_date }} &nbsp;|&nbsp; <strong>Review date:</strong> ____________</p>
+
+  <h2>1. The Commitments</h2>
+  <p>I commit to completing each habit below <strong>on or before its deadline</strong>, every day.</p>
+  <table><thead><tr><th>Habit</th><th>Window</th><th>Deadline</th></tr></thead><tbody>
+    {% for r in rows %}<tr><td>{{ r.title }}</td><td>{% if r.window_start %}from {{ r.window_start }}{% else %}–{% endif %}</td><td>{{ r.target_time }}</td></tr>{% endfor %}
+  </tbody></table>
+
+  <h2>2. What Counts as Success</h2>
+  <ul>
+    <li>A habit is <strong>done</strong> only if checked off on or before its deadline.</li>
+    <li>A habit unchecked when its deadline passes is <strong>failed</strong>.</li>
+    <li>A habit checked off <strong>after</strong> its deadline is also failed. Late is not done.</li>
+    <li>A failed day stays failed. No retroactive edits to the log.</li>
+  </ul>
+
+  <h2>3. The Stakes</h2>
+  <p>Each failure triggers the penalty attached to that habit, automatically and without negotiation.</p>
+  <table><thead><tr><th>Habit</th><th>Penalty on failure</th><th>Forfeit</th></tr></thead><tbody>
+    {% for r in rows %}<tr><td>{{ r.title }}</td><td>{{ r.penalty_description or '(no contract)' }}</td>
+      <td>{% if r.forfeit_amount is not none %}{{ '%g' % r.forfeit_amount }}{% else %}none{% endif %}</td></tr>{% endfor %}
+  </tbody></table>
+
+  <h2>4. Serving a Penalty</h2>
+  <ul>
+    <li>A penalty must be completed within <strong>24 hours</strong> of being triggered.</li>
+    <li>Once completed, it is marked as served on the Penalties page.</li>
+    <li>A penalty not served within 24 hours is <strong>doubled</strong>.</li>
+  </ul>
+
+  <h2>5. Exceptions</h2>
+  <ul>
+    <li>Only these excuses are valid: <strong>illness, emergency, pre-announced travel</strong>.</li>
+    <li>An exception must be declared <strong>before</strong> the deadline, never after.</li>
+    <li>An excuse invented after a failure does not cancel the penalty.</li>
+  </ul>
+
+  <h2>6. Amendments</h2>
+  <ul>
+    <li>The terms above can only be changed on the review date.</li>
+    <li>No mid-week renegotiation, and no “just this once”.</li>
+  </ul>
+
+  <p class="sign">Signed: ____________________ &nbsp; Date: ____________<br><br>
+     Witnessed: ____________________ &nbsp; Date: ____________</p>
+</article>
+{% endblock %}

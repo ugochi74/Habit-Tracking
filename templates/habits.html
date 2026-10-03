@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Habits · Habit-Tracking{% endblock %}
+{% block content %}
+<h1>Habits &amp; contracts</h1>
+
+<section class="card">
+  <h2>Add a habit</h2>
+  <form method="post" action="{{ url_for('habits_add') }}" class="grid">
+    <label>Title <input name="title" required maxlength="60" placeholder="Read 20 pages"></label>
+    <label>Window starts (optional) <input type="time" name="window_start"></label>
+    <label>Deadline <input type="time" name="target_time" required></label>
+    <label class="wide">Description (optional) <input name="description" maxlength="120"></label>
+    <label class="wide">Penalty if I fail (optional) <input name="penalty" maxlength="120" placeholder="20 push-ups"></label>
+    <label>Forfeit amount (optional) <input name="forfeit" inputmode="decimal" placeholder="0"></label>
+    <div class="wide"><button class="primary">Add habit</button></div>
+  </form>
+  <p class="muted small">If today's deadline has already passed, the habit starts tomorrow.</p>
+</section>
+
+{% for h in rows %}
+  <section class="card">
+    <div class="row">
+      <div class="body">
+        <h2>{{ h.title }}</h2>
+        <p class="muted">{% if h.window_start %}{{ h.window_start }} → {% endif %}deadline {{ h.target_time }}{% if h.description %} · {{ h.description }}{% endif %}</p>
+      </div>
+      <form method="post" action="{{ url_for('habits_archive', habit_id=h.id) }}"
+            onsubmit="return confirm('Archive this habit?')">
+        <button class="ghost">Archive</button>
+      </form>
+    </div>
+    <form method="post" action="{{ url_for('habits_contract', habit_id=h.id) }}" class="grid">
+      <label class="wide">Penalty if I fail (blank = no contract)
+        <input name="penalty" value="{{ h.penalty_description or '' }}" maxlength="120"></label>
+      <label>Forfeit amount
+        <input name="forfeit" inputmode="decimal" value="{{ '%g' % h.forfeit_amount if h.forfeit_amount is not none else '' }}"></label>
+      <div class="wide"><button>Save contract</button></div>
+    </form>
+  </section>
+{% endfor %}
+{% endblock %}
