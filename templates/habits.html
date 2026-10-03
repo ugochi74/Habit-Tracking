@@ -29,6 +29,16 @@
         <button class="ghost">Archive</button>
       </form>
     </div>
+    <details>
+      <summary>Edit name &amp; times</summary>
+      <form method="post" action="{{ url_for('habits_edit', habit_id=h.id) }}" class="grid">
+        <label>Title <input name="title" required maxlength="60" value="{{ h.title }}"></label>
+        <label>Window starts <input type="time" name="window_start" value="{{ h.window_start or '' }}"></label>
+        <label>Deadline <input type="time" name="target_time" required value="{{ h.target_time }}"></label>
+        <label class="wide">Description <input name="description" maxlength="120" value="{{ h.description or '' }}"></label>
+        <div class="wide"><button>Save changes</button></div>
+      </form>
+    </details>
     <form method="post" action="{{ url_for('habits_contract', habit_id=h.id) }}" class="grid">
       <label class="wide">Penalty if I fail (blank = no contract)
         <input name="penalty" value="{{ h.penalty_description or '' }}" maxlength="120"></label>

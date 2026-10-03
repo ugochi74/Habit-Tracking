@@ -42,6 +42,7 @@ def create_app(db_path=None, clock=None):
     with closing(database.connect(app.config["DATABASE"])) as conn:
         if conn.execute("SELECT COUNT(*) FROM habits").fetchone()[0] == 0:
             database.seed_starter_habits(conn, now())
+        database.apply_one_time_seeds(conn, now())
 
     app.teardown_appcontext(database.close_db)
 
@@ -59,17 +60,22 @@ def create_app(db_path=None, clock=None):
     def inject_globals():
         count = database.get_db().execute(
             "SELECT COUNT(*) FROM penalty_events WHERE fulfilled = 0").fetchone()[0]
-        return {"open_penalty_count": count}
+        return {"open_penalty_count": count, "today_long": now().strftime("%A, %d %B %Y")}
 
     # ---------- Today ----------
 
     @app.get("/")
     def index():
-        items = logic.today_status(database.get_db(), now())
+        db, current = database.get_db(), now()
+        items = logic.today_status(db, current)
+        hour = current.hour
+        greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
+        name = os.environ.get("HABIT_NAME", "").strip()
         return render_template(
-            "today.html", items=items,
+            "today.html", items=items, stats=logic.dashboard_stats(db, items, current),
+            greeting=f"{greeting}, {name}" if name else greeting,
             done_count=sum(1 for i in items if i["status"] == "done"),
-            today_label=now().strftime("%A, %d %B %Y"))
+            today_label=current.strftime("%A, %d %B %Y"))
 
     @app.post("/habits/<int:habit_id>/done")
     def check_off(habit_id):
@@ -111,7 +117,7 @@ def create_app(db_path=None, clock=None):
             """SELECT h.id, h.title, h.description, h.window_start, h.target_time,
                       c.penalty_description, c.forfeit_amount
                FROM habits h LEFT JOIN contracts c ON c.habit_id = h.id AND c.active = 1
-               WHERE h.active = 1 ORDER BY h.sort_order""").fetchall()
+               WHERE h.active = 1 ORDER BY h.target_time, h.sort_order""").fetchall()
         return render_template("habits.html", rows=rows)
 
     @app.post("/habits")
@@ -124,6 +130,19 @@ def create_app(db_path=None, clock=None):
                 window_start=f.get("window_start") or None,
                 penalty=f.get("penalty"), forfeit=parse_forfeit(f.get("forfeit")))
             flash("Habit added.", "ok")
+        except ValueError as e:
+            flash(str(e), "error")
+        return redirect(url_for("habits"))
+
+    @app.post("/habits/<int:habit_id>/edit")
+    def habits_edit(habit_id):
+        f = request.form
+        try:
+            logic.update_habit(
+                database.get_db(), habit_id, f.get("title"), f.get("target_time"), now(),
+                description=(f.get("description") or "").strip() or None,
+                window_start=f.get("window_start") or None)
+            flash("Habit updated. Anything already logged today stays as it is.", "ok")
         except ValueError as e:
             flash(str(e), "error")
         return redirect(url_for("habits"))
@@ -151,7 +170,9 @@ def create_app(db_path=None, clock=None):
     @app.get("/history")
     def history():
         days = min(max(request.args.get("days", 14, type=int), 1), 90)
-        return render_template("history.html", days=days,
+        view = request.args.get("view", "summary")
+        view = view if view in ("summary", "grid") else "summary"
+        return render_template("history.html", days=days, view=view,
                                **logic.history(database.get_db(), days, now()))
 
     # ---------- The contract document ----------

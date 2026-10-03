@@ -13,7 +13,8 @@ python app.py
 ```
 
 Open http://127.0.0.1:5000. The database is created on first run with three starter habits
-(Wake-up 06:00, Morning routine 06:00–07:30, Work closure 18:00), each with a penalty you can edit.
+(Wake-up 06:00, Morning routine 06:00–07:30, Work closure 18:00) plus **Daily devotion** (Bible reading and prayer,
+06:00–06:45, no penalty until you set one). Change any name or time on the Habits page.
 
 Run the tests: `python -m unittest discover -s tests -v`
 
@@ -21,12 +22,16 @@ If `python3 -m venv` fails on Ubuntu/Debian: `sudo apt install python3-venv`.
 
 ## Pages
 
+The pages are in a left sidebar (grouped as TRACKER and MANAGE). Click an item, or press its number key (1–5).
+Use **Collapse sidebar** to shrink it to icons, and the moon button in the top bar to switch light/dark mode.
+Both choices are remembered by your browser.
+
 | Page | What it does |
 |------|--------------|
-| Today | Timeline of today's habits with a **Check off** button and time left. Refreshes every minute. |
+| Today | Dashboard cards (progress, next deadline, penalties owed, 7-day success rate) and the timeline with **Check off** buttons. Refreshes every minute. |
 | Penalties | Penalties triggered by failures. Mark each one served. |
-| Habits | Add habits, set or change each habit's penalty and forfeit, archive habits. |
-| History | Success rate per habit and a day-by-day grid (7/14/30/90 days). |
+| Habits | Add habits, edit names and times, set each habit's penalty and forfeit, archive habits. |
+| History | Two tabs: Summary (success rate per habit) and Day by day (grid). Choose 7/14/30/90 days. |
 | Contract | The contract, filled in from your habits and stakes. Print it or download as Markdown. |
 
 ## How the contract works
@@ -50,8 +55,9 @@ schema.sql      tables: habits, daily_logs, contracts, penalty_events
 templates/      Jinja pages
 static/         stylesheet
 contracts/      Markdown contract template
-tests/          23 tests (fake clocks, no waiting)
+tests/          29 tests (fake clocks, no waiting)
 ```
 
-Settings (environment variables): `HABIT_DB` (database path), `PORT`, `FLASK_DEBUG=1`.
+Settings (environment variables): `HABIT_DB` (database path), `PORT`, `FLASK_DEBUG=1`, and `HABIT_NAME`
+(shows "Good morning, <name>" on the Today page), e.g. `HABIT_NAME=Melody python app.py`.
 The server only listens on 127.0.0.1, so it is reachable from your computer only.

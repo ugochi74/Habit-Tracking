@@ -54,18 +54,38 @@ def set_contract(db, habit_id, penalty, forfeit=None):
         (habit_id, penalty, forfeit))
 
 
-def add_habit(db, title, target_time, now, description=None, window_start=None,
-              penalty=None, forfeit=None):
+def _validated_fields(db, title, target_time, window_start, exclude_id=None):
     title = (title or "").strip()
     if not title:
         raise ValueError("Give the habit a title.")
     if not is_valid_time(target_time):
         raise ValueError("The deadline must be a time like 07:30.")
-    if window_start and not is_valid_time(window_start):
-        raise ValueError("The window start must be a time like 06:00.")
-    if db.execute("SELECT 1 FROM habits WHERE active = 1 AND lower(title) = lower(?)",
-                  (title,)).fetchone():
+    if window_start:
+        if not is_valid_time(window_start):
+            raise ValueError("The window start must be a time like 06:00.")
+        if to_minutes(window_start) >= to_minutes(target_time):
+            raise ValueError("The window must start before the deadline.")
+    if db.execute("SELECT 1 FROM habits WHERE active = 1 AND lower(title) = lower(?) AND id != ?",
+                  (title, exclude_id or 0)).fetchone():
         raise ValueError(f'You already have a habit called "{title}".')
+    return title
+
+
+def update_habit(db, habit_id, title, target_time, now, description=None, window_start=None):
+    """Change a habit's name, times, or description. Results already logged today stay as they are."""
+    title = _validated_fields(db, title, target_time, window_start, exclude_id=habit_id)
+    with db:
+        changed = db.execute(
+            """UPDATE habits SET title = ?, description = ?, window_start = ?, target_time = ?
+               WHERE id = ? AND active = 1""",
+            (title, description, window_start or None, target_time, habit_id)).rowcount
+    if not changed:
+        raise ValueError("That habit doesn't exist.")
+
+
+def add_habit(db, title, target_time, now, description=None, window_start=None,
+              penalty=None, forfeit=None):
+    title = _validated_fields(db, title, target_time, window_start)
 
     # A habit whose deadline has already passed today starts tomorrow,
     # so adding it late in the day doesn't instantly fail it.
@@ -163,13 +183,29 @@ def today_status(db, now):
            JOIN daily_logs l ON l.habit_id = h.id AND l.date = ?
            LEFT JOIN contracts c ON c.habit_id = h.id AND c.active = 1
            WHERE h.active = 1
-           ORDER BY h.sort_order, h.target_time""", (day,)).fetchall()
+           ORDER BY h.target_time, h.sort_order""", (day,)).fetchall()
     items = []
     for r in rows:
         item = dict(r)
         item["time_left"] = time_left(r["target_time"], now) if r["status"] == "pending" else None
         items.append(item)
     return items
+
+
+def dashboard_stats(db, items, now):
+    """Numbers for the cards at the top of the Today page. `items` comes from today_status()."""
+    pending = [i for i in items if i["status"] == "pending"]
+    week = history(db, 7, now)["summary"]
+    done, failed = sum(s["done"] for s in week), sum(s["failed"] for s in week)
+    owed = open_penalties(db)
+    return {
+        "done": sum(1 for i in items if i["status"] == "done"),
+        "total": len(items),
+        "next": pending[0] if pending else None,       # items are already in time order
+        "week_rate": round(100 * done / (done + failed)) if done + failed else None,
+        "owed_count": len(owed),
+        "owed_forfeit": sum(r["forfeit_amount"] or 0 for r in owed),
+    }
 
 
 def open_penalties(db):
@@ -199,7 +235,7 @@ def history(db, days, now):
     habits = db.execute(
         """SELECT id, title FROM habits
            WHERE active = 1 OR id IN (SELECT habit_id FROM daily_logs WHERE date >= ?)
-           ORDER BY sort_order""", (since,)).fetchall()
+           ORDER BY target_time, sort_order""", (since,)).fetchall()
     summary = []
     for h in habits:
         statuses = [grid.get((d, h["id"])) for d in dates]
@@ -215,7 +251,7 @@ def contract_rows(db):
         """SELECT h.title, h.window_start, h.target_time,
                   c.penalty_description, c.forfeit_amount
            FROM habits h LEFT JOIN contracts c ON c.habit_id = h.id AND c.active = 1
-           WHERE h.active = 1 ORDER BY h.sort_order""").fetchall()
+           WHERE h.active = 1 ORDER BY h.target_time, h.sort_order""").fetchall()
 
 
 def render_contract_markdown(template_text, rows, name, partner, now):

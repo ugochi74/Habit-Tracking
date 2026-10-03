@@ -129,6 +129,14 @@ class ContractProtocol(unittest.TestCase):
             with self.assertRaises(ValueError):
                 logic.add_habit(db, now=at(2026, 10, 2, 5, 0), **kwargs)
 
+    def test_update_habit_rejects_duplicates_but_allows_keeping_own_name(self):
+        db = fresh_db()
+        wid = habit_id(db, "Wake-up")
+        logic.update_habit(db, wid, "Wake-up", "05:30", at(2026, 10, 2, 5, 0))   # same name is fine
+        self.assertEqual(db.execute("SELECT target_time FROM habits WHERE id = ?", (wid,)).fetchone()[0], "05:30")
+        with self.assertRaises(ValueError):
+            logic.update_habit(db, wid, "work closure", "05:30", at(2026, 10, 2, 5, 0))
+
     def test_history_summary(self):
         db = fresh_db()
         logic.check_in(db, habit_id(db, "Wake-up"), at(2026, 10, 2, 5, 50))
@@ -151,8 +159,11 @@ class WebApp(unittest.TestCase):
 
     def test_today_page_lists_starter_habits(self):
         page = self.client.get("/").get_data(as_text=True)
-        for title in ("Wake-up", "Morning routine", "Work closure"):
+        for title in ("Wake-up", "Daily devotion", "Morning routine", "Work closure"):
             self.assertIn(title, page)
+        # timeline is chronological: devotion (06:45) sits between wake-up and morning routine
+        self.assertLess(page.index("Wake-up"), page.index("Daily devotion"))
+        self.assertLess(page.index("Daily devotion"), page.index("Morning routine"))
 
     def test_all_pages_render(self):
         for path in ("/", "/penalties", "/habits", "/history", "/history?days=7", "/contract"):
@@ -163,7 +174,7 @@ class WebApp(unittest.TestCase):
         r = self.client.post(f"/habits/{wake}/done", follow_redirects=True)
         text = r.get_data(as_text=True)
         self.assertIn("Checked off, on time", text)
-        self.assertIn("1 of 3 done", text)
+        self.assertIn("1 of 4 done", text)
 
     def test_missed_deadline_shows_penalty_banner_then_can_be_served(self):
         self.clock[0] = at(2026, 10, 2, 18, 5)
@@ -184,6 +195,62 @@ class WebApp(unittest.TestCase):
         bad = self.client.post("/habits", data=dict(title="Read", target_time="21:00", forfeit="abc"),
                                follow_redirects=True).get_data(as_text=True)
         self.assertIn("forfeit must be a number", bad)
+
+    def test_sidebar_menu_has_grouped_clickable_links(self):
+        page = self.client.get("/habits").get_data(as_text=True)
+        self.assertIn('class="side-label">TRACKER', page)
+        self.assertIn('class="side-label">MANAGE', page)
+        for i, (path, label) in enumerate((("/", "Today"), ("/penalties", "Penalties"), ("/history", "History"),
+                                           ("/habits", "Habits"), ("/contract", "Contract")), start=1):
+            self.assertIn(f'href="{path}" data-key="{i}"', page)
+            self.assertIn(f'<span class="label">{label}</span>', page)
+        self.assertEqual(page.count('aria-current="page"'), 1)
+        self.assertIn("Collapse sidebar", page)
+
+    def test_dashboard_cards_on_today(self):
+        wake = habit_id(database.connect(self.app.config["DATABASE"]), "Wake-up")
+        self.client.post(f"/habits/{wake}/done")
+        page = self.client.get("/").get_data(as_text=True)
+        self.assertIn("Good morning", page)
+        self.assertIn("Today's progress", page)
+        self.assertIn("Next deadline", page)
+        self.assertIn("Penalties owed", page)
+        self.assertIn("Last 7 days", page)
+        self.assertIn("width: 25%", page)   # 1 of 4 done
+
+    def test_history_tabs(self):
+        summary = self.client.get("/history").get_data(as_text=True)
+        grid = self.client.get("/history?view=grid&days=7").get_data(as_text=True)
+        self.assertIn("Success rate", summary)
+        self.assertNotIn("Success rate", grid)
+        self.assertIn("grid-table", grid)
+
+    def test_devotion_habit_added_once_with_no_contract_and_stays_archived(self):
+        path = self.app.config["DATABASE"]
+        conn = database.connect(path)
+        row = conn.execute("SELECT id, target_time FROM habits WHERE title = 'Daily devotion'").fetchone()
+        self.assertEqual(row["target_time"], "06:45")
+        self.assertIsNone(conn.execute("SELECT 1 FROM contracts WHERE habit_id = ? AND active = 1",
+                                       (row["id"],)).fetchone())
+        logic.archive_habit(conn, row["id"])
+        conn.close()
+        create_app(path, clock=lambda: self.clock[0])  # restart the app
+        conn = database.connect(path)
+        self.assertEqual(conn.execute("SELECT COUNT(*) FROM habits WHERE title = 'Daily devotion'").fetchone()[0], 1)
+        self.assertEqual(conn.execute("SELECT active FROM habits WHERE id = ?", (row["id"],)).fetchone()[0], 0)
+
+    def test_edit_habit_time_through_the_form(self):
+        conn = database.connect(self.app.config["DATABASE"])
+        hid = habit_id(conn, "Daily devotion")
+        ok = self.client.post(f"/habits/{hid}/edit", data=dict(
+            title="Daily devotion", window_start="05:00", target_time="05:45"),
+            follow_redirects=True).get_data(as_text=True)
+        self.assertIn("Habit updated", ok)
+        self.assertEqual(conn.execute("SELECT target_time FROM habits WHERE id = ?", (hid,)).fetchone()[0], "05:45")
+        bad = self.client.post(f"/habits/{hid}/edit", data=dict(
+            title="Daily devotion", window_start="06:00", target_time="05:45"),
+            follow_redirects=True).get_data(as_text=True)
+        self.assertIn("window must start before the deadline", bad)
 
     def test_html_in_titles_is_escaped(self):
         self.client.post("/habits", data=dict(title="<script>alert(1)</script>", target_time="21:00"))

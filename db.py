@@ -32,6 +32,27 @@ def seed_starter_habits(conn, now):
                         window_start=h["window_start"], penalty=h["penalty"])
 
 
+# Applied once per database, then remembered in `meta`, so archiving a habit keeps it archived.
+# No contract by default: set the penalty yourself once the time is right for you.
+ONE_TIME_SEEDS = {
+    "daily-devotion-v1": dict(title="Daily devotion", description="Read the Bible and pray",
+                              window_start="06:00", target_time="06:45"),
+}
+
+
+def apply_one_time_seeds(conn, now):
+    for key, h in ONE_TIME_SEEDS.items():
+        if conn.execute("SELECT 1 FROM meta WHERE key = ?", (key,)).fetchone():
+            continue
+        try:
+            logic.add_habit(conn, h["title"], h["target_time"], now,
+                            description=h["description"], window_start=h["window_start"])
+        except ValueError:
+            pass  # you already have a habit with that name; leave it alone
+        with conn:
+            conn.execute("INSERT INTO meta (key) VALUES (?)", (key,))
+
+
 def get_db():
     if "db" not in g:
         g.db = connect(current_app.config["DATABASE"])

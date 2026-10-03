@@ -1,43 +1,74 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Today · Habit-Tracking{% endblock %}
 {% block head %}<meta http-equiv="refresh" content="60">{% endblock %}
 {% block content %}
-<h1>Today</h1>
-<p class="muted">{{ today_label }} · {{ done_count }} of {{ items|length }} done · this page re-checks deadlines every minute</p>
+<div class="page-head">
+  <h1>{{ greeting }} 👋</h1>
+  <p class="muted">{{ today_label }} · {{ done_count }} of {{ items|length }} done · this page re-checks deadlines every minute</p>
+</div>
 
-{% if open_penalty_count %}
-<div class="alert penalty">You owe {{ open_penalty_count }} penalt{{ 'y' if open_penalty_count == 1 else 'ies' }}.
-  <a href="{{ url_for('penalties') }}">Settle up →</a></div>
-{% endif %}
+<section class="stats">
+  <div class="card stat">
+    <div class="stat-head">{{ icon('check') }} Today's progress</div>
+    <div class="stat-big">{{ stats.done }}<span> / {{ stats.total }}</span></div>
+    <div class="progress"><span style="width: {{ (100 * stats.done / stats.total)|round|int if stats.total else 0 }}%"></span></div>
+  </div>
 
-{% if not items %}
-  <p class="card">Nothing scheduled today. <a href="{{ url_for('habits') }}">Add a habit</a>.</p>
-{% endif %}
+  <div class="card stat">
+    <div class="stat-head">{{ icon('clock') }} Next deadline</div>
+    {% if stats.next %}
+      <div class="stat-big small-text">{{ stats.next.title }}</div>
+      <p class="muted">by {{ stats.next.target_time }} · {{ stats.next.time_left }}</p>
+    {% else %}
+      <div class="stat-big small-text">All clear</div>
+      <p class="muted">Nothing left to check off today</p>
+    {% endif %}
+  </div>
 
-<ol class="timeline">
-{% for h in items %}
-  <li class="card {{ h.status }}">
-    <div class="time">{% if h.window_start %}{{ h.window_start }}<br>→ {% endif %}{{ h.target_time }}</div>
-    <div class="body">
-      <h2>{{ h.title }}</h2>
-      {% if h.description %}<p class="muted">{{ h.description }}</p>{% endif %}
-      {% if h.penalty_description %}
-        <p class="stake">Stake: {{ h.penalty_description }}{% if h.forfeit_amount is not none %} · forfeit {{ '%g' % h.forfeit_amount }}{% endif %}</p>
-      {% endif %}
-    </div>
-    <div class="action">
-      {% if h.status == 'pending' %}
-        <form method="post" action="{{ url_for('check_off', habit_id=h.id) }}">
-          <button class="primary">Check off</button>
-        </form>
-        <span class="muted small">{{ h.time_left }}</span>
-      {% elif h.status == 'done' %}
-        <span class="pill done">Done</span>
-      {% else %}
-        <span class="pill failed">Failed</span>
-      {% endif %}
-    </div>
-  </li>
-{% endfor %}
-</ol>
+  <a class="card stat link {% if stats.owed_count %}danger{% endif %}" href="{{ url_for('penalties') }}">
+    <div class="stat-head">{{ icon('alert') }} Penalties owed</div>
+    <div class="stat-big">{{ stats.owed_count }}</div>
+    <p class="muted">{% if stats.owed_forfeit %}forfeit total {{ '%g' % stats.owed_forfeit }}{% elif stats.owed_count %}Settle up →{% else %}Nothing owed{% endif %}</p>
+  </a>
+
+  <div class="card stat">
+    <div class="stat-head">{{ icon('trend') }} Last 7 days</div>
+    <div class="stat-big">{% if stats.week_rate is none %}–{% else %}{{ stats.week_rate }}%{% endif %}</div>
+    <p class="muted">success rate</p>
+  </div>
+</section>
+
+<section class="card panel">
+  <h2 class="panel-title">Today's timeline</h2>
+  {% if not items %}
+    <p>Nothing scheduled today. <a href="{{ url_for('habits') }}">Add a habit</a>.</p>
+  {% endif %}
+  <ol class="timeline">
+  {% for h in items %}
+    <li class="item {{ h.status }}">
+      <div class="time">{% if h.window_start %}{{ h.window_start }}<br>→ {% endif %}{{ h.target_time }}</div>
+      <div class="body">
+        <h3>{{ h.title }}</h3>
+        {% if h.description %}<p class="muted">{{ h.description }}</p>{% endif %}
+        {% if h.penalty_description %}
+          <p class="stake">Stake: {{ h.penalty_description }}{% if h.forfeit_amount is not none %} · forfeit {{ '%g' % h.forfeit_amount }}{% endif %}</p>
+        {% endif %}
+      </div>
+      <div class="action">
+        {% if h.status == 'pending' %}
+          <form method="post" action="{{ url_for('check_off', habit_id=h.id) }}">
+            <button class="primary">Check off</button>
+          </form>
+          <span class="muted small">{{ h.time_left }}</span>
+        {% elif h.status == 'done' %}
+          <span class="pill done">Done</span>
+        {% else %}
+          <span class="pill failed">Failed</span>
+        {% endif %}
+      </div>
+    </li>
+  {% endfor %}
+  </ol>
+</section>
 {% endblock %}

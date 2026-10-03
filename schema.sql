@@ -35,3 +35,8 @@ CREATE TABLE IF NOT EXISTS penalty_events (
   triggered_at TEXT NOT NULL,
   fulfilled    INTEGER NOT NULL DEFAULT 0
 );
+
+-- Remembers which one-time starter seeds have been applied (so archived habits stay archived).
+CREATE TABLE IF NOT EXISTS meta (
+  key TEXT PRIMARY KEY
+);

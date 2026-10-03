@@ -1,34 +1,94 @@
+{% from "_icons.html" import icon %}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Habit-Tracking{% endblock %}</title>
+  <script>
+    // Apply saved theme / sidebar state before the page paints (no flash).
+    (function () {
+      try {
+        var t = localStorage.getItem("ht-theme");
+        if (t) document.documentElement.setAttribute("data-theme", t);
+        if (localStorage.getItem("ht-side") === "1") document.documentElement.classList.add("collapsed");
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   {% block head %}{% endblock %}
 </head>
 <body>
   {% set ep = request.endpoint %}
-  <header>
-    <div class="wrap bar">
-      <a class="brand" href="{{ url_for('index') }}">Habit-Tracking</a>
-      <nav>
-        <a href="{{ url_for('index') }}" {% if ep == 'index' %}class="active"{% endif %}>Today</a>
-        <a href="{{ url_for('penalties') }}" {% if ep == 'penalties' %}class="active"{% endif %}>Penalties
-          {% if open_penalty_count %}<span class="badge">{{ open_penalty_count }}</span>{% endif %}</a>
-        <a href="{{ url_for('habits') }}" {% if ep == 'habits' %}class="active"{% endif %}>Habits</a>
-        <a href="{{ url_for('history') }}" {% if ep == 'history' %}class="active"{% endif %}>History</a>
-        <a href="{{ url_for('contract') }}" {% if ep == 'contract' %}class="active"{% endif %}>Contract</a>
-      </nav>
+  {% set tabs = [('TRACKER', 'index', 'Today', 'grid'),
+                 ('TRACKER', 'penalties', 'Penalties', 'alert'),
+                 ('TRACKER', 'history', 'History', 'chart'),
+                 ('MANAGE', 'habits', 'Habits', 'tasks'),
+                 ('MANAGE', 'contract', 'Contract', 'file')] %}
+
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}"><span class="logo">{{ icon('check') }}</span>Habit-Tracking</a>
+    <span class="topdate">{{ today_long }}</span>
+    <div class="top-actions">
+      <a class="icon-btn" href="{{ url_for('penalties') }}" title="Penalties owed" aria-label="Penalties owed">
+        {{ icon('bell') }}{% if open_penalty_count %}<span class="badge pos">{{ open_penalty_count }}</span>{% endif %}
+      </a>
+      <button class="icon-btn" id="theme-toggle" type="button" title="Switch light / dark" aria-label="Switch light or dark mode">{{ icon('moon') }}</button>
     </div>
   </header>
-  <main class="wrap">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% for category, message in messages %}
-        <div class="alert {{ category }}">{{ message }}</div>
-      {% endfor %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-  </main>
+
+  <div class="shell">
+    <aside class="sidebar">
+      <nav class="side-nav" aria-label="Main menu">
+        {% for section, endpoint, label, ic in tabs %}
+          {% if loop.first or loop.previtem[0] != section %}<div class="side-label">{{ section }}</div>{% endif %}
+          <a href="{{ url_for(endpoint) }}" data-key="{{ loop.index }}" title="{{ label }}"
+             class="side-link {% if ep == endpoint %}active{% endif %}"
+             {% if ep == endpoint %}aria-current="page"{% endif %}>
+            {{ icon(ic) }}<span class="label">{{ label }}</span>
+            {% if endpoint == 'penalties' and open_penalty_count %}<span class="badge">{{ open_penalty_count }}</span>{% endif %}
+          </a>
+        {% endfor %}
+      </nav>
+      <button class="collapse-btn" id="collapse" type="button">{{ icon('chevron') }}<span class="label">Collapse sidebar</span></button>
+    </aside>
+
+    <main class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="alert {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      var root = document.documentElement;
+      function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+      document.getElementById("collapse").addEventListener("click", function () {
+        save("ht-side", root.classList.toggle("collapsed") ? "1" : "0");
+      });
+
+      document.getElementById("theme-toggle").addEventListener("click", function () {
+        var current = root.getAttribute("data-theme") ||
+          (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        var next = current === "dark" ? "light" : "dark";
+        root.setAttribute("data-theme", next);
+        save("ht-theme", next);
+      });
+
+      // Keyboard: press 1-5 to jump to a menu item.
+      document.addEventListener("keydown", function (e) {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        var t = e.target;
+        if (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].indexOf(t.tagName) !== -1) return;
+        var link = document.querySelector('.side-nav a[data-key="' + e.key + '"]');
+        if (link) window.location = link.href;
+      });
+    })();
+  </script>
 </body>
 </html>
